@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>5 - Preview & Secure PDF</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{--bg:#061026;--card:#071225;--fg:#eef6ff;--muted:#9fb0d8;--accent:#2b7de9}
+  body{margin:0;font-family:Inter,system-ui;background:var(--bg);color:var(--fg);padding:12px}
+  .wrap{max-width:1100px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:10px}
+  .panel{background:linear-gradient(180deg,#071225,#061122);padding:12px;border-radius:12px}
+  .previewBox{height:640px;border-radius:10px;overflow:auto;border:1px solid rgba(255,255,255,.03);padding:10px;background:#071428}
+  .thumb{width:100%;height:auto;border-radius:8px}
+  input,button,textarea{font-family:inherit}
+  .btn{padding:10px 12px;border-radius:10px;border:0;cursor:pointer;background:var(--accent);color:white}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,.04)}
+  #viewerFrame{width:100%;height:640px;border:0;background:white}
+  .small{font-size:13px;color:var(--muted)}
+  @media(max-width:960px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>5 of 5 — Preview & create encrypted PDF</h1>
+  <div class="grid">
+    <div class="panel">
+      <h3>Preview</h3>
+      <div class="previewBox" id="previewBox"></div>
+
+      <div style="margin-top:10px">
+        <label class="small">Set a password to encrypt PDF
+          <input id="pdfPass" type="password" placeholder="Choose a strong password" style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--fg)" />
+        </label>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="genPdf">Generate & Encrypt PDF</button>
+          <button class="btn ghost" id="downloadEncrypted" disabled>Download encrypted JSON</button>
+        </div>
+        <div style="margin-top:8px" class="small">Note: Encrypted PDF cannot be viewed until the password is entered in the viewer. The PDF will include a clickable APK link and a QR code for easy download.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Secure viewer</h3>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="viewerPass" type="password" placeholder="Enter password to view" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--fg)" />
+        <button class="btn" id="unlock">Unlock</button>
+      </div>
+
+      <div style="position:relative">
+        <iframe id="viewerFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn ghost" id="back">← Back to edit</button>
+        <button class="btn ghost" id="clearAll">Clear saved wizard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- jsPDF + CryptoJS + QR lib -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
+<script>
+(async function(){
+  const { jsPDF } = window.jspdf;
+
+  function getAll(){ const raw = localStorage.getItem('wizard_all'); return raw?JSON.parse(raw):{}; }
+  const all = getAll();
+
+  function el(tag,cls){ const n=document.createElement(tag); if(cls) n.className=cls; return n; }
+  const preview = document.getElementById('previewBox'); preview.innerHTML='';
+
+  const header = el('div'); header.style.display='flex'; header.style.gap='12px'; header.style.alignItems='center';
+  const iconWrap = el('div'); iconWrap.style.width='84px'; iconWrap.style.height='84px'; iconWrap.style.borderRadius='14px'; iconWrap.style.overflow='hidden'; iconWrap.style.flex='0 0 84px';
+  if(all.icon){
+    const im = el('img'); im.src = all.icon; im.style.width='100%'; im.style.height='100%'; im.style.objectFit='cover'; iconWrap.appendChild(im);
+  }
+  header.appendChild(iconWrap);
+  const meta = el('div'); meta.innerHTML = `<strong style="font-size:16px">${all.appName||'My App'}</strong><div class="small">${all.developer||''}</div><div class="small">${all.category||''} · ${all.contentRating||''}</div>`;
+  header.appendChild(meta);
+  preview.appendChild(header);
+
+  const short = el('div'); short.style.marginTop='12px'; short.textContent = all.shortDesc || '';
+  preview.appendChild(short);
+
+  const long = el('pre'); long.style.whiteSpace='pre-wrap'; long.style.marginTop='12px'; long.textContent = all.longDesc || '';
+  preview.appendChild(long);
+
+  if(Array.isArray(all.screenshots) && all.screenshots.length){
+    const sgrid = el('div'); sgrid.style.display='grid'; sgrid.style.gridTemplateColumns='1fr 1fr'; sgrid.style.gap='8px'; sgrid.style.marginTop='10px';
+    all.screenshots.slice(0,4).forEach(src=>{ const im = el('img'); im.src = src; im.style.width='100%'; im.style.height='120px'; im.style.objectFit='cover'; im.style.borderRadius='8px'; sgrid.appendChild(im); });
+    preview.appendChild(sgrid);
+  }
+
+  if(Array.isArray(all.features) && all.features.length){
+    const f = el('div'); f.style.marginTop='12px'; f.innerHTML = '<strong>Top features</strong>';
+    const ul = el('ul'); all.features.forEach(x=>{ const li = el('li'); li.textContent = x; ul.appendChild(li); }); f.appendChild(ul); preview.appendChild(f);
+  }
+
+  // helper conversions for CryptoJS
+  function arrayBufferToWordArray(ab){
+    const u8 = new Uint8Array(ab);
+    const words = [];
+    for (let i = 0; i < u8.length; i += 4) {
+      words.push(
+        ((u8[i] << 24) | (u8[i+1] << 16) | (u8[i+2] << 8) | (u8[i+3])) >>> 0
+      );
+    }
+    return CryptoJS.lib.WordArray.create(words, u8.length);
+  }
+  function wordArrayToUint8Array(wordArray) {
+    const len = wordArray.sigBytes;
+    const words = wordArray.words;
+    const result = new Uint8Array(len);
+    let idx=0;
+    for (let i = 0; i < words.length; i++) {
+      let w = words[i];
+      if(idx < len) result[idx++] = (w >> 24) & 0xFF;
+      if(idx < len) result[idx++] = (w >> 16) & 0xFF;
+      if(idx < len) result[idx++] = (w >> 8) & 0xFF;
+      if(idx < len) result[idx++] = w & 0xFF;
+    }
+    return result;
+  }
+
+  async function generatePdfArrayBuffer(){
+    const doc = new jsPDF({unit:'pt',format:'a4'});
+    const margin = 36;
+    doc.setFontSize(22);
+    doc.text(all.appName || 'My App', margin, 64);
+    doc.setFontSize(12);
+    doc.text(`By ${all.developer||'—'}`, margin, 86);
+    doc.setFontSize(11);
+    const text = (all.longDesc && all.longDesc.length>0) ? all.longDesc : (all.shortDesc||'No description.');
+    const split = doc.splitTextToSize(text, 520);
+    doc.text(split, margin, 110);
+
+    if(all.features && all.features.length){
+      doc.setFontSize(13); doc.text('Top features:', margin, 320);
+      doc.setFontSize(11);
+      all.features.forEach((f,i)=> doc.text(`• ${f}`, margin+10, 340 + i*16));
+    }
+
+    // add APK link text and clickable link area
+    const apkUrl = all.apkUrl || '';
+    doc.setFontSize(12);
+    const apkText = apkUrl ? `Download APK: ${apkUrl}` : 'No APK URL provided.';
+    const yApk = 520;
+    doc.text(apkText, margin, yApk);
+    if(apkUrl){
+      // create a clickable link rectangle over the text area
+      const w = doc.getTextWidth(apkText);
+      doc.link(margin, yApk - 10, w, 14, { url: apkUrl });
+    }
+
+    // Generate a QR code image (canvas) for the APK URL (if provided)
+    if(apkUrl){
+      try{
+        const qrCanvas = document.createElement('canvas');
+        await QRCode.toCanvas(qrCanvas, apkUrl, { width: 160, margin: 1 });
+        const data = qrCanvas.toDataURL('image/png');
+        doc.addImage(data, 'PNG', 420, 500, 120, 120);
+      }catch(e){}
+    }
+
+    // watermark
+    doc.setFontSize(28); doc.setTextColor(180);
+    const wm = `${all.developer || 'Developer'} • ${new Date().toLocaleString()}`;
+    doc.textWithRotation ? doc.textWithRotation(wm, 300, 420, { angle: 45, opacity: 0.08 }) : doc.text(wm, 200, 420);
+
+    return doc.output('arraybuffer');
+  }
+
+  document.getElementById('genPdf').addEventListener('click', async ()=>{
+    const pass = document.getElementById('pdfPass').value;
+    if(!pass){ alert('Enter a password to encrypt the PDF'); return; }
+    document.getElementById('genPdf').disabled = true;
+    try{
+      const ab = await generatePdfArrayBuffer();
+      const wa = arrayBufferToWordArray(ab);
+      // encrypt using pass (Utf8)
+      const encrypted = CryptoJS.AES.encrypt(wa, CryptoJS.enc.Utf8.parse(pass), { mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+      const base64 = encrypted.toString();
+      const meta = { createdAt: new Date().toISOString(), owner: all.developer||'', appName: all.appName||'' };
+      localStorage.setItem('wizard_pdf_enc', JSON.stringify({ meta, cipher: base64 }));
+      document.getElementById('downloadEncrypted').disabled = false;
+      alert('Encrypted PDF stored locally. To view, enter password in viewer.');
+    }catch(e){
+      console.error(e); alert('PDF generation failed: ' + e.message);
+    }
+    document.getElementById('genPdf').disabled = false;
+  });
+
+  document.getElementById('downloadEncrypted').addEventListener('click', ()=>{
+    const raw = localStorage.getItem('wizard_pdf_enc'); if(!raw){ alert('No encrypted PDF stored'); return; }
+    const blob = new Blob([raw], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${(all.appName||'app')}-encrypted.json`; a.click();
+  });
+
+  // Unlock viewer: decrypt and display PDF in iframe
+  document.getElementById('unlock').addEventListener('click', async ()=>{
+    const raw = localStorage.getItem('wizard_pdf_enc'); if(!raw){ alert('No encrypted PDF found. Generate PDF first.'); return; }
+    const data = JSON.parse(raw);
+    const pass = document.getElementById('viewerPass').value;
+    if(!pass){ alert('Enter password'); return; }
+    try{
+      const decrypted = CryptoJS.AES.decrypt(data.cipher, CryptoJS.enc.Utf8.parse(pass), { mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+      const u8 = wordArrayToUint8Array(decrypted);
+      const blob = new Blob([u8], {type:'application/pdf'});
+      const url = URL.createObjectURL(blob);
+      const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{height:100%;margin:0;background:#111}iframe{width:100%;height:100%;border:0}</style></head><body><iframe src="${url}"></iframe></body></html>`;
+      const blobViewer = new Blob([html], {type:'text/html'});
+      const blobViewerUrl = URL.createObjectURL(blobViewer);
+      document.getElementById('viewerFrame').src = blobViewerUrl;
+
+      try{ document.getElementById('viewerFrame').requestFullscreen && await document.getElementById('viewerFrame').requestFullscreen(); }catch(e){}
+    }catch(e){
+      console.error(e);
+      alert('Decrypt failed. Wrong password or corrupted data.');
+    }
+  });
+
+  // helpers used above
+  function arrayBufferToWordArray(ab){
+    const u8 = new Uint8Array(ab);
+    const words = [];
+    for (let i = 0; i < u8.length; i += 4) {
+      words.push(
+        ((u8[i] << 24) | (u8[i+1] << 16) | (u8[i+2] << 8) | (u8[i+3])) >>> 0
+      );
+    }
+    return CryptoJS.lib.WordArray.create(words, u8.length);
+  }
+  function wordArrayToUint8Array(wordArray) {
+    const len = wordArray.sigBytes;
+    const words = wordArray.words;
+    const result = new Uint8Array(len);
+    let idx=0;
+    for (let i = 0; i < words.length; i++) {
+      let w = words[i];
+      if(idx < len) result[idx++] = (w >> 24) & 0xFF;
+      if(idx < len) result[idx++] = (w >> 16) & 0xFF;
+      if(idx < len) result[idx++] = (w >> 8) & 0xFF;
+      if(idx < len) result[idx++] = w & 0xFF;
+    }
+    return result;
+  }
+
+  document.getElementById('back').addEventListener('click', ()=> location.href='4.html');
+  document.getElementById('clearAll').addEventListener('click', ()=> {
+    if(!confirm('Clear all saved wizard data and encrypted PDF?')) return;
+    localStorage.removeItem('wizard_all'); localStorage.removeItem('wizard_pdf_enc');
+    alert('Cleared. Taking you back to step 1.');
+    location.href='1.html';
+  });
+
+  // block common print/save shortcuts (not foolproof)
+  document.addEventListener('keydown', function(e){
+    if((e.ctrlKey||e.metaKey) && ['s','p'].includes(e.key.toLowerCase())){ e.preventDefault(); alert('Shortcut disabled in viewer'); }
+  });
+})();
+</script>
+</body>
+</html>

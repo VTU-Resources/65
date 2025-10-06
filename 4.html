@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>4 - Policies & APK</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{--bg:#071022;--fg:#eaf2ff;--muted:#9fb0d8;--accent:#2b7de9}
+  body{margin:0;padding:18px;font-family:Inter,system-ui;background:var(--bg);color:var(--fg)}
+  .wrap{max-width:980px;margin:0 auto}
+  .card{background:linear-gradient(180deg,#061129,#041020);padding:16px;border-radius:12px}
+  label{display:block;margin-top:8px;color:var(--muted)}
+  input,textarea{width:100%;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--fg)}
+  .row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .btn{padding:9px 12px;border-radius:10px;border:0;background:var(--accent);color:white;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,.06)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>4 of 5 — Policies & APK link</h1>
+    <div class="row">
+      <label style="flex:1">Privacy Policy URL
+        <input id="privacyUrl" placeholder="https://example.com/privacy" />
+      </label>
+      <label style="flex:1">Support Email
+        <input id="supportEmail" placeholder="support@example.com" />
+      </label>
+    </div>
+
+    <div class="row">
+      <label style="flex:1">Support Phone
+        <input id="supportPhone" placeholder="Phone number" />
+      </label>
+      <label style="flex:1">Website
+        <input id="website" placeholder="https://example.com" />
+      </label>
+    </div>
+
+    <label>Version
+      <input id="version" placeholder="1.0.0" />
+    </label>
+
+    <label>What's new (short)
+      <textarea id="whatsNew" placeholder="Highlights for this release"></textarea>
+    </label>
+
+    <label>APK Download URL
+      <input id="apkUrl" placeholder="https://yourserver.com/yourapp.apk" />
+      <div style="color:var(--muted);font-size:13px;margin-top:6px">Enter the APK URL that will be embedded in the final PDF. You will host the APK yourself.</div>
+    </label>
+
+    <div style="display:flex;justify-content:space-between;margin-top:12px">
+      <button class="btn ghost" id="back">← Back</button>
+      <div>
+        <button class="btn ghost" id="genPrivacy">Generate Privacy</button>
+        <button class="btn" id="next">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const allRaw = localStorage.getItem('wizard_all'); let all = allRaw?JSON.parse(allRaw):{};
+  ['privacyUrl','supportEmail','supportPhone','website','version','whatsNew','apkUrl'].forEach(id=>{
+    if(all[id]) document.getElementById(id).value = all[id];
+  });
+
+  function genPolicy(){
+    const name = all.appName || 'This App';
+    const email = document.getElementById('supportEmail').value || 'support@example.com';
+    const text = `${name} Privacy Policy\nWe collect minimal information. Contact: ${email}`;
+    const t = document.createElement('textarea'); t.value = text; t.style.position='fixed'; t.style.left='-9999px'; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); alert('Privacy summary copied to clipboard. Paste it into your site.'); } catch(e){ alert('Unable to copy, please copy manually.'); }
+    document.body.removeChild(t);
+  }
+
+  document.getElementById('genPrivacy').addEventListener('click', genPolicy);
+
+  document.getElementById('next').addEventListener('click', ()=>{
+    ['privacyUrl','supportEmail','supportPhone','website','version','whatsNew','apkUrl'].forEach(id=>{
+      all[id] = document.getElementById(id).value;
+    });
+    localStorage.setItem('wizard_all', JSON.stringify(all));
+    localStorage.setItem('wizard_step4', JSON.stringify({privacyUrl:all.privacyUrl,supportEmail:all.supportEmail,supportPhone:all.supportPhone,website:all.website,version:all.version,whatsNew:all.whatsNew,apkUrl:all.apkUrl}));
+    location.href='5.html';
+  });
+  document.getElementById('back').addEventListener('click', ()=> location.href='3.html');
+})();
+</script>
+</body>
+</html>
