@@ -1,268 +1,125 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>5 - Preview & Secure PDF</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preview & Generate APK — Step 5</title>
 <link rel="icon" href="data:,">
 <style>
-  :root{--bg:#061026;--card:#071225;--fg:#eef6ff;--muted:#9fb0d8;--accent:#2b7de9}
-  body{margin:0;font-family:Inter,system-ui;background:var(--bg);color:var(--fg);padding:12px}
-  .wrap{max-width:1100px;margin:0 auto}
-  .grid{display:grid;grid-template-columns:360px 1fr;gap:10px}
-  .panel{background:linear-gradient(180deg,#071225,#061122);padding:12px;border-radius:12px}
-  .previewBox{height:640px;border-radius:10px;overflow:auto;border:1px solid rgba(255,255,255,.03);padding:10px;background:#071428}
-  .thumb{width:100%;height:auto;border-radius:8px}
-  input,button,textarea{font-family:inherit}
-  .btn{padding:10px 12px;border-radius:10px;border:0;cursor:pointer;background:var(--accent);color:white}
-  .ghost{background:transparent;border:1px solid rgba(255,255,255,.04)}
-  #viewerFrame{width:100%;height:640px;border:0;background:white}
-  .small{font-size:13px;color:var(--muted)}
-  @media(max-width:960px){.grid{grid-template-columns:1fr}}
+:root{--bg:#061026;--card:#071225;--fg:#eef6ff;--muted:#9fb0d8;--accent:#2b7de9;--glass: rgba(255,255,255,0.03);--radius:12px;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue";background:var(--bg);color:var(--fg);padding:12px}
+.wrap{max-width:1100px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+h1{font-size:18px}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:12px}
+.panel{background:linear-gradient(180deg,#071225,#061122);padding:12px;border-radius:var(--radius);box-shadow:0 6px 18px rgba(0,0,0,0.4)}
+.previewBox{min-height:420px;border-radius:10px;overflow:auto;border:1px solid var(--glass);padding:12px;background:#071428}
+.thumb{width:100%;height:auto;border-radius:8px}
+.btn{padding:12px 16px;border-radius:10px;border:0;cursor:pointer;background:var(--accent);color:white;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(43,125,233,0.12)}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,.06);color:var(--fg)}
+.small{font-size:13px;color:var(--muted)}
+.meta{display:flex;gap:12px;align-items:center}
+.icon{width:84px;height:84px;border-radius:14px;overflow:hidden;flex:0 0 84px;background:linear-gradient(45deg,#0b2747,#061122)}
+.metaTitle{font-size:16px;font-weight:700}
+.sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+ul.features{padding-left:18px;margin:8px 0 0 0}
+.controls{display:flex;flex-direction:column;gap:12px;align-items:stretch;justify-content:center;height:100%}
+.center{display:flex;align-items:center;justify-content:center}
+.hint{text-align:center;font-size:13px;color:var(--muted)}
+.input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--fg)}
+.footerBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+/* Overlay / generator */
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(0deg, rgba(0,0,0,0.75), rgba(0,0,0,0.7));z-index:9999;padding:18px}
+.cardOverlay{width:100%;max-width:520px;background:#061128;border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6);text-align:center}
+.lottieWrap{display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+lottie-player{width:180px;height:180px;background:transparent}
+.progressWrap{height:12px;background:rgba(255,255,255,0.04);border-radius:999px;overflow:hidden;margin:12px 0}
+.progressBar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#4fc3ff);transition:width 0.2s linear}
+.status{font-weight:800;margin-top:6px;font-size:15px}
+.finalScreen{display:none}
+.downloadNote{font-size:13px;color:var(--muted);margin-top:10px}
+@media(max-width:960px){.grid{grid-template-columns:1fr}.cardOverlay{max-width:96%}.previewBox{min-height:320px}.icon{width:68px;height:68px;flex:0 0 68px} lottie-player{width:140px;height:140px}}
+@media(max-width:480px){lottie-player{width:120px;height:120px}.cardOverlay{padding:14px;border-radius:12px}.btn{padding:10px 12px;font-size:14px;border-radius:8px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>5 of 5 — Preview & create encrypted PDF</h1>
-  <div class="grid">
-    <div class="panel">
-      <h3>Preview</h3>
-      <div class="previewBox" id="previewBox"></div>
-
-      <div style="margin-top:10px">
-        <label class="small">Set a password to encrypt PDF
-          <input id="pdfPass" type="password" placeholder="Choose a strong password" style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--fg)" />
-        </label>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn" id="genPdf">Generate & Encrypt PDF</button>
-          <button class="btn ghost" id="downloadEncrypted" disabled>Download encrypted JSON</button>
-        </div>
-        <div style="margin-top:8px" class="small">Note: Encrypted PDF cannot be viewed until the password is entered in the viewer. The PDF will include a clickable APK link and a QR code for easy download.</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Secure viewer</h3>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input id="viewerPass" type="password" placeholder="Enter password to view" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:var(--fg)" />
-        <button class="btn" id="unlock">Unlock</button>
-      </div>
-
-      <div style="position:relative">
-        <iframe id="viewerFrame" sandbox="allow-scripts allow-same-origin"></iframe>
-      </div>
-
-      <div style="margin-top:10px;display:flex;gap:8px">
-        <button class="btn ghost" id="back">← Back to edit</button>
-        <button class="btn ghost" id="clearAll">Clear saved wizard</button>
-      </div>
-    </div>
-  </div>
+<header><h1>5 of 5 — Preview & Generate APK</h1><div class="small">Mobile-first preview</div></header>
+<div class="grid">
+<div class="panel">
+<h3>Preview</h3>
+<div class="previewBox" id="previewBox"></div>
+</div>
+<div class="panel">
+<h3>Start Generating your APK</h3>
+<div class="controls">
+<div class="hint">Click the button below to run the professional build animation and download the APK automatically.</div>
+<div class="center" style="margin-top:10px">
+<button id="startGen" class="btn">Start Generating your APK</button>
+</div>
+<div class="hint" style="margin-top:10px">The build sequence will play Lottie animations and then trigger the APK download.</div>
+</div>
+</div>
+</div>
 </div>
 
-<!-- jsPDF + CryptoJS + QR lib -->
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+<div class="cardOverlay" id="cardOverlay">
+<div id="buildStage">
+<div style="font-size:18px;font-weight:900">Building your app…</div>
+<div class="small" id="buildSub">Preparing assets</div>
+<div class="lottieWrap">
+<lottie-player id="player" background="transparent" speed="1" loop autoplay></lottie-player>
+</div>
+<div class="progressWrap">
+<div class="progressBar" id="progressBar"></div>
+</div>
+<div class="status" id="statusText">Initializing</div>
+<div class="small downloadNote" id="downloadNote" style="display:none">Your APK will download automatically — if nothing happens, tap the Download button below.</div>
+</div>
+<div class="finalScreen" id="finalScreen">
+<div style="font-size:20px;font-weight:900">Your APK is ready ✅</div>
+<div class="small" id="finalSub">Download should start automatically. If not, use the button below.</div>
+<div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+<a id="downloadApk" class="btn" href="#" download>Download APK</a>
+<button id="closeOverlay" class="btn ghost">Close</button>
+</div>
+<div class="downloadNote">Hosted file: Google Drive (direct download)</div>
+</div>
+</div>
+</div>
 
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 <script>
-(async function(){
-  const { jsPDF } = window.jspdf;
+(function(){
+const animations=["https://assets8.lottiefiles.com/packages/lf20_tno6cg2w.json","https://assets8.lottiefiles.com/packages/lf20_iwmd6pyr.json","https://assets10.lottiefiles.com/packages/lf20_vnikrcia.json","https://assets1.lottiefiles.com/packages/lf20_r6o4uh3o.json","https://assets2.lottiefiles.com/packages/lf20_3rwasyjy.json"];
+const DRIVE_FILE_ID='YOUR_DRIVE_FILE_ID'; // replace with your APK file id
+const DIRECT_APK_URL=`https://drive.google.com/uc?export=download&id=${DRIVE_FILE_ID}`;
+const preview=document.getElementById('previewBox');
+const overlay=document.getElementById('overlay');
+const player=document.getElementById('player');
+const progressBar=document.getElementById('progressBar');
+const statusText=document.getElementById('statusText');
+const buildSub=document.getElementById('buildSub');
+const startGenBtn=document.getElementById('startGen');
+const finalScreen=document.getElementById('finalScreen');
+const buildStage=document.getElementById('buildStage');
+const downloadApk=document.getElementById('downloadApk');
+const closeOverlay=document.getElementById('closeOverlay');
+const downloadNote=document.getElementById('downloadNote');
 
-  function getAll(){ const raw = localStorage.getItem('wizard_all'); return raw?JSON.parse(raw):{}; }
-  const all = getAll();
-
-  function el(tag,cls){ const n=document.createElement(tag); if(cls) n.className=cls; return n; }
-  const preview = document.getElementById('previewBox'); preview.innerHTML='';
-
-  const header = el('div'); header.style.display='flex'; header.style.gap='12px'; header.style.alignItems='center';
-  const iconWrap = el('div'); iconWrap.style.width='84px'; iconWrap.style.height='84px'; iconWrap.style.borderRadius='14px'; iconWrap.style.overflow='hidden'; iconWrap.style.flex='0 0 84px';
-  if(all.icon){
-    const im = el('img'); im.src = all.icon; im.style.width='100%'; im.style.height='100%'; im.style.objectFit='cover'; iconWrap.appendChild(im);
-  }
-  header.appendChild(iconWrap);
-  const meta = el('div'); meta.innerHTML = `<strong style="font-size:16px">${all.appName||'My App'}</strong><div class="small">${all.developer||''}</div><div class="small">${all.category||''} · ${all.contentRating||''}</div>`;
-  header.appendChild(meta);
-  preview.appendChild(header);
-
-  const short = el('div'); short.style.marginTop='12px'; short.textContent = all.shortDesc || '';
-  preview.appendChild(short);
-
-  const long = el('pre'); long.style.whiteSpace='pre-wrap'; long.style.marginTop='12px'; long.textContent = all.longDesc || '';
-  preview.appendChild(long);
-
-  if(Array.isArray(all.screenshots) && all.screenshots.length){
-    const sgrid = el('div'); sgrid.style.display='grid'; sgrid.style.gridTemplateColumns='1fr 1fr'; sgrid.style.gap='8px'; sgrid.style.marginTop='10px';
-    all.screenshots.slice(0,4).forEach(src=>{ const im = el('img'); im.src = src; im.style.width='100%'; im.style.height='120px'; im.style.objectFit='cover'; im.style.borderRadius='8px'; sgrid.appendChild(im); });
-    preview.appendChild(sgrid);
-  }
-
-  if(Array.isArray(all.features) && all.features.length){
-    const f = el('div'); f.style.marginTop='12px'; f.innerHTML = '<strong>Top features</strong>';
-    const ul = el('ul'); all.features.forEach(x=>{ const li = el('li'); li.textContent = x; ul.appendChild(li); }); f.appendChild(ul); preview.appendChild(f);
-  }
-
-  // helper conversions for CryptoJS
-  function arrayBufferToWordArray(ab){
-    const u8 = new Uint8Array(ab);
-    const words = [];
-    for (let i = 0; i < u8.length; i += 4) {
-      words.push(
-        ((u8[i] << 24) | (u8[i+1] << 16) | (u8[i+2] << 8) | (u8[i+3])) >>> 0
-      );
-    }
-    return CryptoJS.lib.WordArray.create(words, u8.length);
-  }
-  function wordArrayToUint8Array(wordArray) {
-    const len = wordArray.sigBytes;
-    const words = wordArray.words;
-    const result = new Uint8Array(len);
-    let idx=0;
-    for (let i = 0; i < words.length; i++) {
-      let w = words[i];
-      if(idx < len) result[idx++] = (w >> 24) & 0xFF;
-      if(idx < len) result[idx++] = (w >> 16) & 0xFF;
-      if(idx < len) result[idx++] = (w >> 8) & 0xFF;
-      if(idx < len) result[idx++] = w & 0xFF;
-    }
-    return result;
-  }
-
-  async function generatePdfArrayBuffer(){
-    const doc = new jsPDF({unit:'pt',format:'a4'});
-    const margin = 36;
-    doc.setFontSize(22);
-    doc.text(all.appName || 'My App', margin, 64);
-    doc.setFontSize(12);
-    doc.text(`By ${all.developer||'—'}`, margin, 86);
-    doc.setFontSize(11);
-    const text = (all.longDesc && all.longDesc.length>0) ? all.longDesc : (all.shortDesc||'No description.');
-    const split = doc.splitTextToSize(text, 520);
-    doc.text(split, margin, 110);
-
-    if(all.features && all.features.length){
-      doc.setFontSize(13); doc.text('Top features:', margin, 320);
-      doc.setFontSize(11);
-      all.features.forEach((f,i)=> doc.text(`• ${f}`, margin+10, 340 + i*16));
-    }
-
-    // add APK link text and clickable link area
-    const apkUrl = all.apkUrl || '';
-    doc.setFontSize(12);
-    const apkText = apkUrl ? `Download APK: ${apkUrl}` : 'No APK URL provided.';
-    const yApk = 520;
-    doc.text(apkText, margin, yApk);
-    if(apkUrl){
-      // create a clickable link rectangle over the text area
-      const w = doc.getTextWidth(apkText);
-      doc.link(margin, yApk - 10, w, 14, { url: apkUrl });
-    }
-
-    // Generate a QR code image (canvas) for the APK URL (if provided)
-    if(apkUrl){
-      try{
-        const qrCanvas = document.createElement('canvas');
-        await QRCode.toCanvas(qrCanvas, apkUrl, { width: 160, margin: 1 });
-        const data = qrCanvas.toDataURL('image/png');
-        doc.addImage(data, 'PNG', 420, 500, 120, 120);
-      }catch(e){}
-    }
-
-    // watermark
-    doc.setFontSize(28); doc.setTextColor(180);
-    const wm = `${all.developer || 'Developer'} • ${new Date().toLocaleString()}`;
-    doc.textWithRotation ? doc.textWithRotation(wm, 300, 420, { angle: 45, opacity: 0.08 }) : doc.text(wm, 200, 420);
-
-    return doc.output('arraybuffer');
-  }
-
-  document.getElementById('genPdf').addEventListener('click', async ()=>{
-    const pass = document.getElementById('pdfPass').value;
-    if(!pass){ alert('Enter a password to encrypt the PDF'); return; }
-    document.getElementById('genPdf').disabled = true;
-    try{
-      const ab = await generatePdfArrayBuffer();
-      const wa = arrayBufferToWordArray(ab);
-      // encrypt using pass (Utf8)
-      const encrypted = CryptoJS.AES.encrypt(wa, CryptoJS.enc.Utf8.parse(pass), { mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
-      const base64 = encrypted.toString();
-      const meta = { createdAt: new Date().toISOString(), owner: all.developer||'', appName: all.appName||'' };
-      localStorage.setItem('wizard_pdf_enc', JSON.stringify({ meta, cipher: base64 }));
-      document.getElementById('downloadEncrypted').disabled = false;
-      alert('Encrypted PDF stored locally. To view, enter password in viewer.');
-    }catch(e){
-      console.error(e); alert('PDF generation failed: ' + e.message);
-    }
-    document.getElementById('genPdf').disabled = false;
-  });
-
-  document.getElementById('downloadEncrypted').addEventListener('click', ()=>{
-    const raw = localStorage.getItem('wizard_pdf_enc'); if(!raw){ alert('No encrypted PDF stored'); return; }
-    const blob = new Blob([raw], {type:'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${(all.appName||'app')}-encrypted.json`; a.click();
-  });
-
-  // Unlock viewer: decrypt and display PDF in iframe
-  document.getElementById('unlock').addEventListener('click', async ()=>{
-    const raw = localStorage.getItem('wizard_pdf_enc'); if(!raw){ alert('No encrypted PDF found. Generate PDF first.'); return; }
-    const data = JSON.parse(raw);
-    const pass = document.getElementById('viewerPass').value;
-    if(!pass){ alert('Enter password'); return; }
-    try{
-      const decrypted = CryptoJS.AES.decrypt(data.cipher, CryptoJS.enc.Utf8.parse(pass), { mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
-      const u8 = wordArrayToUint8Array(decrypted);
-      const blob = new Blob([u8], {type:'application/pdf'});
-      const url = URL.createObjectURL(blob);
-      const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{height:100%;margin:0;background:#111}iframe{width:100%;height:100%;border:0}</style></head><body><iframe src="${url}"></iframe></body></html>`;
-      const blobViewer = new Blob([html], {type:'text/html'});
-      const blobViewerUrl = URL.createObjectURL(blobViewer);
-      document.getElementById('viewerFrame').src = blobViewerUrl;
-
-      try{ document.getElementById('viewerFrame').requestFullscreen && await document.getElementById('viewerFrame').requestFullscreen(); }catch(e){}
-    }catch(e){
-      console.error(e);
-      alert('Decrypt failed. Wrong password or corrupted data.');
-    }
-  });
-
-  // helpers used above
-  function arrayBufferToWordArray(ab){
-    const u8 = new Uint8Array(ab);
-    const words = [];
-    for (let i = 0; i < u8.length; i += 4) {
-      words.push(
-        ((u8[i] << 24) | (u8[i+1] << 16) | (u8[i+2] << 8) | (u8[i+3])) >>> 0
-      );
-    }
-    return CryptoJS.lib.WordArray.create(words, u8.length);
-  }
-  function wordArrayToUint8Array(wordArray) {
-    const len = wordArray.sigBytes;
-    const words = wordArray.words;
-    const result = new Uint8Array(len);
-    let idx=0;
-    for (let i = 0; i < words.length; i++) {
-      let w = words[i];
-      if(idx < len) result[idx++] = (w >> 24) & 0xFF;
-      if(idx < len) result[idx++] = (w >> 16) & 0xFF;
-      if(idx < len) result[idx++] = (w >> 8) & 0xFF;
-      if(idx < len) result[idx++] = w & 0xFF;
-    }
-    return result;
-  }
-
-  document.getElementById('back').addEventListener('click', ()=> location.href='4.html');
-  document.getElementById('clearAll').addEventListener('click', ()=> {
-    if(!confirm('Clear all saved wizard data and encrypted PDF?')) return;
-    localStorage.removeItem('wizard_all'); localStorage.removeItem('wizard_pdf_enc');
-    alert('Cleared. Taking you back to step 1.');
-    location.href='1.html';
-  });
-
-  // block common print/save shortcuts (not foolproof)
-  document.addEventListener('keydown', function(e){
-    if((e.ctrlKey||e.metaKey) && ['s','p'].includes(e.key.toLowerCase())){ e.preventDefault(); alert('Shortcut disabled in viewer'); }
-  });
+function getAll(){try{const raw=localStorage.getItem('wizard_all');return raw?JSON.parse(raw):{}}catch(e){return{}}}
+function renderPreview(){const all=getAll();preview.innerHTML='';const header=document.createElement('div');header.className='meta';const iconWrap=document.createElement('div');iconWrap.className='icon';if(all.icon){const im=document.createElement('img');im.src=all.icon;im.alt='icon';im.style.width='100%';im.style.height='100%';im.style.objectFit='cover';iconWrap.appendChild(im);}else{iconWrap.innerHTML='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted)">ICON</div>'}header.appendChild(iconWrap);const meta=document.createElement('div');const title=document.createElement('div');title.className='metaTitle';title.textContent=all.appName||'My App';const dev=document.createElement('div');dev.className='small';dev.textContent=all.developer||'';const cat=document.createElement('div');cat.className='small';cat.textContent=((all.category||'')+(all.contentRating?' · '+all.contentRating:'')).trim();meta.appendChild(title);meta.appendChild(dev);meta.appendChild(cat);header.appendChild(meta);preview.appendChild(header);if(all.shortDesc){const short=document.createElement('div');short.style.marginTop='12px';short.textContent=all.shortDesc;preview.appendChild(short);}if(all.longDesc){const long=document.createElement('pre');long.style.whiteSpace='pre-wrap';long.style.marginTop='12px';long.textContent=all.longDesc;preview.appendChild(long);}if(Array.isArray(all.screenshots)&&all.screenshots.length){const sgrid=document.createElement('div');sgrid.className='sgrid';all.screenshots.slice(0,4).forEach(src=>{const im=document.createElement('img');im.src=src;im.className='thumb';im.style.height='120px';im.style.objectFit='cover';sgrid.appendChild(im);});preview.appendChild(sgrid);}if(Array.isArray(all.features)&&all.features.length){const f=document.createElement('div');f.style.marginTop='12px';const strong=document.createElement('div');strong.style.fontWeight='700';strong.textContent='Top features';f.appendChild(strong);const ul=document.createElement('ul');ul.className='features';all.features.forEach(x=>{const li=document.createElement('li');li.textContent=x;ul.appendChild(li);});f.appendChild(ul);preview.appendChild(f);}}
+function playSequence(arr,onProgress,onComplete){let idx=0;const total=arr.length;function playNext(){if(idx>=total){onComplete&&onComplete();return;}const url=arr[idx];onProgress&&onProgress(idx,total);player.load(url);player.setAttribute('loop','false');player.setAttribute('autoplay','true');let finished=false;const onCompleteEvent=()=>{if(finished)return;finished=true;player.removeEventListener('complete',onCompleteEvent);idx++;setTimeout(playNext,200);};player.addEventListener('complete',onCompleteEvent);setTimeout(()=>{if(!finished){finished=true;player.removeEventListener('complete',onCompleteEvent);idx++;playNext();}},2800);player.addEventListener('complete',()=>clearTimeout());}playNext();}
+function stageProgress(index,total){const pct=Math.round((index/total)*100);progressBar.style.width=pct+'%';const stageNames=['Preparing assets','Compiling resources','Optimizing images','Bundling code','Signing package','Finalizing'];statusText.textContent=stageNames[Math.min(index,stageNames.length-1)]||'Building';}
+function startGenerator(){overlay.style.display='flex';finalScreen.style.display='none';buildStage.style.display='block';progressBar.style.width='0%';statusText.textContent='Initializing';downloadNote.style.display='none';const main=animations.slice(0,animations.length);playSequence(main,(i,tot)=>stageProgress(i,tot),()=>{finalizeAndDownload();});}
+let alreadyStarted=false;
+function finalizeAndDownload(){if(alreadyStarted)return;alreadyStarted=true;progressBar.style.width='100%';statusText.textContent='Completed';buildSub.textContent='APK ready';downloadNote.style.display='block';buildStage.style.display='none';finalScreen.style.display='block';downloadApk.href=DIRECT_APK_URL;const suggestedName=(getAll().appName||'app').replace(/\s+/g,'-').toLowerCase()+'.apk';downloadApk.setAttribute('download',suggestedName);try{downloadApk.dispatchEvent(new MouseEvent('click'));}catch(e){console.warn('Auto-download failed:',e);}}
+startGenBtn.addEventListener('click',startGenerator);
+closeOverlay.addEventListener('click',()=>{overlay.style.display='none';alreadyStarted=false;});
+renderPreview();
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.style.display==='flex')overlay.style.display='none';});
 })();
 </script>
 </body>
